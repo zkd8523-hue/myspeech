@@ -221,24 +221,73 @@ footer p { margin: 2px 0 }
 </div></footer>
 
 <script>
-// 네이버 검색광고가 붙여 주는 검색어(n_query·n_keyword)로 「○○대 면접,」을 제목 앞에 단다.
-// 값이 없거나 면접과 무관하면 기본 제목 그대로.
+// ── 광고 유입 측정 (2026-10-20) ──────────────────────────────────────────
+// 네이버 검색광고가 붙여 주는 검색어(n_query·n_keyword)로
+//  ① 제목 앞에 「○○대 면접,」을 달고
+//  ② 키워드마다 정한 코드(nv001…, docs/naver-ad-codes.csv)를 스토어 링크에 싣고
+//  ③ 방문·스토어 버튼 클릭을 우리 서버(/lp)에 남긴다. 개인정보는 보내지 않는다.
 (function () {
-  try {
-    var q = new URLSearchParams(location.search);
-    var raw = (q.get('n_query') || q.get('n_keyword') || q.get('q') || '').replace(/\s+/g, '');
-    var m = raw.match(/^(.{2,12}?)(대학교|대)?면접/);
-    if (m && m[1]) {
-      // 「○○대 면접,」 뒤에 「면접은」이 또 오지 않게 제목을 통째로 바꾼다.
-      var name = m[1] + (m[2] ? '대' : '');
-      var h1 = document.querySelector('h1');
+  var API = 'https://myspeech-api.fly.dev/lp';
+  var APP = 'https://apps.apple.com/kr/app/id6793932390';
+  var PLAY = 'https://play.google.com/store/apps/details?id=com.jinjjamoksori.voice_tutor';
+  // App Store Connect → 앱 분석 → 캠페인 링크의 「제공자 토큰(pt)」. 비어 있으면 ct 를 안 붙인다.
+  var PT = '';
+  var CODES = {"우송대면접":"nv001","가천대면접":"nv002","한신대면접":"nv003","신한대면접":"nv004","대구보건대면접":"nv005","명지대교과면접":"nv006","영남이공대면접":"nv007","청주대면접":"nv008","신한대학교면접":"nv009","백석대면접":"nv010","중부대면접":"nv011","안산대면접":"nv012","우송정보대면접":"nv013","마산대면접":"nv014","안양대면접":"nv015","삼육대면접":"nv016","신라대면접":"nv017","연암대면접":"nv018","가천대면접질문":"nv019","부천대면접":"nv020","대림대면접":"nv021","연암공대면접":"nv022","계명문화대면접":"nv023","연성대면접":"nv024","영진전문대면접":"nv025","대전대면접":"nv026","한서대면접":"nv027","충청대면접":"nv028","충북보건과학대면접":"nv029","동서울대면접":"nv030","광주교대면접":"nv031","호서대면접":"nv032","한국성서대면접":"nv033","극동대면접":"nv034","대진대면접":"nv035","대구과학대면접":"nv036","협성대면접":"nv037","춘해보건대면접":"nv038","동덕여대면접":"nv039","전북대면접":"nv040","인천대면접":"nv041","대전보건대면접":"nv042","구미대면접":"nv043","수성대면접":"nv044","대구대면접":"nv045","대경대면접":"nv046","충남대면접":"nv047","가천대면접기출":"nv048","동국대wise면접":"nv049","경민대면접":"nv050","연세대제시문면접":"nv051","인제대면접":"nv052","성결대학교면접":"nv053","서경대면접":"nv054","동의과학대면접":"nv055","한국외대면접":"nv056","혜전대면접":"nv057","육사면접":"nv058","경북대면접":"nv059","전남대면접":"nv060","유원대면접":"nv061","동아대면접":"nv062","한양여대면접":"nv063","국제대면접":"nv064","동아방송예술대면접":"nv065","동서대면접":"nv066","한국영상대면접":"nv067","서울여대면접":"nv068","건국대글로컬면접":"nv069","육군사관학교면접":"nv070","서원대면접":"nv071","경운대면접":"nv072","덕성여대면접":"nv073","부산외대면접":"nv074","경동대면접":"nv075","서울여자간호대면접":"nv076","경복대면접":"nv077","대동대면접":"nv078","세종대면접":"nv079","과기대면접":"nv080","경남대면접":"nv081","창신대면접":"nv082","호남대면접":"nv083","한림대면접":"nv084","조선이공대면접":"nv085","선린대면접":"nv086","서울과기대면접":"nv087","교원대면접":"nv088","계명대면접":"nv089","총신대면접":"nv090","강원대면접":"nv091","창원대면접":"nv092","광주여대면접":"nv093","경인여대면접":"nv094","단국대면접":"nv095","공주대면접":"nv096","제주한라대면접":"nv097","대구한의대면접":"nv098","오산대면접":"nv099","한밭대면접":"nv100","대림대학교면접":"nv101","명지전문대면접":"nv102","동의대면접":"nv103","서일대면접":"nv104","삼육보건대면접":"nv105","한국관광대면접":"nv106","경북전문대면접":"nv107","장안대면접":"nv108","신안산대면접":"nv109","한국교원대면접":"nv110","수원과학대면접":"nv111","호산대면접":"nv112","남서울대면접":"nv113","한동대면접":"nv114","동신대면접":"nv115","유한대면접":"nv116","경일대면접":"nv117","재능대면접":"nv118","전주비전대면접":"nv119","진주보건대면접":"nv120","강남대면접":"nv121","아주대면접후기":"nv122","연세대미래면접":"nv123","송원대면접":"nv124","칼빈대면접":"nv125","영산대면접":"nv126","호원대면접":"nv127","신구대면접":"nv128","서정대면접":"nv129","경남정보대면접":"nv130","명지대학교면접":"nv131","고신대면접":"nv132","우석대면접":"nv133","원광대면접":"nv134","울산과학대면접":"nv135","경찰대면접":"nv136","인천대편입면접":"nv137","경북보건대면접":"nv138","부산여대면접":"nv139","한국공학대면접":"nv140","청강문화산업대면접":"nv141","인하대수시면접":"nv142","충남대편입면접":"nv143","경상국립대면접":"nv144","한국해양대면접":"nv145","순천대면접":"nv146","선문대면접":"nv147","남부대면접":"nv148","한라대면접":"nv149","용인예술과학대면접":"nv150","대덕대면접":"nv151","포항대면접":"nv152","부산경상대면접":"nv153","홍익대면접":"nv154","상명대면접":"nv155","해사고면접":"nv156","목원대면접":"nv157","세명대면접":"nv158","영남대면접":"nv159","위덕대면접":"nv160","조선대면접":"nv161","인덕대면접":"nv162","동남보건대면접":"nv163","안동과학대면접":"nv164","거제대면접":"nv165","숭실대수시면접":"nv166","성균관대학교면접":"nv167","한국항공대면접":"nv168","건양대의대면접":"nv169","차의과학대면접":"nv170","부산가톨릭대면접":"nv171","성균관대편입면접":"nv172","총신대학교면접":"nv173","서강대면접":"nv174","충북대면접":"nv175","용인대면접":"nv176","상명대천안면접":"nv177","건양대면접":"nv178","나사렛대면접":"nv179","배재대면접":"nv180","한남대면접":"nv181","울산대면접":"nv182","백석문화대면접":"nv183","제주관광대면접":"nv184","부경대편입면접":"nv185","한국기술교육대면접":"nv186","디미고면접":"nv187","한경국립대면접":"nv188","한국전통문화대면접":"nv189"};
+  var q;
+  try { q = new URLSearchParams(location.search); } catch (e) { q = { get: function () { return null; } }; }
+  var raw = (q.get('n_query') || q.get('n_keyword') || q.get('q') || '').replace(/\s+/g, '');
+  var fromNaver = !!(q.get('n_media') || q.get('n_query') || q.get('n_keyword'));
+
+  // ① 제목
+  var m = raw.match(/^(.{2,12}?)(대학교|대)?면접/);
+  if (m && m[1]) {
+    var name = m[1] + (m[2] ? '대' : '');
+    var h1 = document.querySelector('h1');
+    if (h1) {
       h1.textContent = '';
       var kw = document.createElement('span');
       kw.className = 'kw';
       kw.textContent = name + ' 면접,';
       h1.append(kw, document.createElement('br'), '말로 해 봐야', document.createElement('br'), '늘어요.');
     }
-  } catch (e) {}
+  }
+
+  // ② 코드·출처
+  var code = CODES[raw.toLowerCase()] || (raw || fromNaver ? 'nv_other' : 'web');
+  var src = fromNaver ? 'naver' : 'direct';
+  try { if (!fromNaver && document.referrer) src = new URL(document.referrer).hostname.slice(0, 20); } catch (e) {}
+  var ua = navigator.userAgent || '';
+  var os = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
+  var vid = '';
+  try { vid = localStorage.getItem('lp_vid') || ''; } catch (e) {}
+  if (!/^[0-9a-z]{16}$/.test(vid)) {
+    vid = Array.from({ length: 16 }, function () { return 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]; }).join('');
+    try { localStorage.setItem('lp_vid', vid); } catch (e) {}
+  }
+
+  // ③ 기록 — text/plain 이라 CORS 사전 요청이 없다. 실패는 조용히 버린다.
+  function send(ev) {
+    var body = JSON.stringify({ ev: ev, vid: vid, kw: raw.slice(0, 40), code: code, src: src, os: os });
+    try {
+      if (!(navigator.sendBeacon && navigator.sendBeacon(API, new Blob([body], { type: 'text/plain' })))) {
+        fetch(API, { method: 'POST', body: body, mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain' } });
+      }
+    } catch (e) {}
+  }
+  send('view');
+
+  document.querySelectorAll('a[href^="https://apps.apple.com"]').forEach(function (a) {
+    if (PT) a.href = APP + '?pt=' + PT + '&ct=' + code + '&mt=8';
+    a.addEventListener('click', function () { send('click_ios'); });
+  });
+  document.querySelectorAll('a[href^="https://play.google.com"]').forEach(function (a) {
+    var ref = 'utm_source=' + (fromNaver ? 'naver' : 'web') + '&utm_medium=' + (fromNaver ? 'cpc' : 'referral') + '&utm_campaign=' + code;
+    a.href = PLAY + '&referrer=' + encodeURIComponent(ref);
+    a.addEventListener('click', function () { send('click_android'); });
+  });
+  document.querySelectorAll('a[href="#download"]').forEach(function (a) {
+    a.addEventListener('click', function () { send('scroll_download'); });
+  });
 })();
 </script>
 
